@@ -1,0 +1,434 @@
+﻿AppType=JavaFX
+Build1=Default,com.stevel05.analyseclipboard
+Build2=Hexview,com.stevel05.analyseclipboard,HexView
+File1=hv.bjl
+File2=Layout1.bjl
+File3=Left.bjl
+File4=Right.bjl
+FileGroup1=Default Group
+FileGroup2=Default Group
+FileGroup3=Default Group
+FileGroup4=Default Group
+Group=Default Group
+Library1=draganddrop2-b4xlib
+Library10=jhexviewer-b4x
+Library2=javaobject
+Library3=jcore
+Library4=jfx
+Library5=jokhttputils2
+Library6=jrandomaccessfile
+Library7=jxui
+Library8=webp
+Library9=xui views
+Module1=|absolute|D:\AnywhereSoftware\B4j\aaaIDELinks\aaaIDElinks
+Module2=HexViewForm
+Module3=LogU
+NumberOfFiles=4
+NumberOfLibraries=10
+NumberOfModules=3
+Version=10.2
+@EndOfDesignText@
+#Region Project Attributes 
+	#MainFormWidth: 900
+	#MainFormHeight: 600 
+#End Region
+
+#PackagerProperty: IncludedModules = javafx.web
+#CustomBuildAction: After Packager, %WINDIR%\System32\robocopy.exe, ..\Objects\b4xlibs\Files temp\build\bin\ webp.dll
+
+'My specific Actions
+#CustomBuildAction: After Packager, %WINDIR%\System32\robocopy.exe, /MIR temp\build\ C:\noinst\B4j\analyseClipboard
+
+
+Sub Process_Globals
+	
+	Type DragboardProxyType( _
+	HasFiles As Boolean, _
+	HasHTML As Boolean, _
+	HasImage As Boolean, _
+	HasRtf As Boolean, _
+	HasString As Boolean, _
+	HasUrl As Boolean _
+	)
+	
+	Type ContentProxyType( _
+	Files As List, _
+	HTML As String, _
+	Img As Image, _
+	RTF As String, _
+	Str As String, _
+	URL As String _
+	)
+	
+	
+	Private fx As JFX
+	Private MainForm As Form
+	Private xui As XUI 
+
+	Private SplitPane1 As SplitPane
+	Private btnAnalyse As B4XView
+	Private WebView1 As WebView
+	Private ImageView1 As ImageView
+	Private TextArea1 As TextArea
+	Private ListView1 As ListView
+	Private Clipboard As JavaObject
+	Private Dialog As B4XDialog
+	Private lblStatus As B4XView
+	Private IVWidth As Double = 300
+	Private IVHeight As Double = 200
+	Private taLog As B4XView
+	Private ScrollPane1 As ScrollPane
+	Private DragDrop As DragAndDrop
+	Private Dragbd As Dragboard
+	Private DragboardProxy As DragboardProxyType
+	Private ContentProxy As ContentProxyType
+	Private ContentMap As Map
+	Private HvForm As HexViewForm
+	Private HexBufferMap As Map
+End Sub
+
+
+Sub AppStart (Form1 As Form, Args() As String)
+	MainForm = Form1
+	MainForm.RootPane.LoadLayout("Layout1")
+	
+	MainForm.Title = "Analyse Clipboard"
+	
+	Dialog.Initialize(MainForm.RootPane)
+	
+	SplitPane1.LoadLayout("Left")
+	SplitPane1.LoadLayout("Right")
+	
+	SplitPane1.DividerPositions = Array As Double(0.66)
+	MainForm.Show
+	
+	HvForm.Initialize
+	
+	ImageView1.RemoveNodeFromParent
+	ScrollPane1.InnerNode = ImageView1
+	ScrollPane1.FitToHeight = True
+	ScrollPane1.FitToWidth = True
+	
+	DragDrop.Initialize(Me)
+	DragboardProxy.Initialize
+	
+	DragDrop.MakeDragTarget(ListView1,"DragTarget")
+	ContentMap.Initialize
+	
+	Dim Divider1PosProp As JavaObject = SplitPane1.As(JavaObject).RunMethodJO("getDividers",Null).RunMethodJO("get", Array(0)).RunMethod("positionProperty",Null)
+	Dim O As Object = Divider1PosProp.CreateEventFromUI("javafx.beans.value.ChangeListener","Divider1PosPropChanged",Null)
+	Divider1PosProp.RunMethod("addListener",Array(O))
+	
+	HexBufferMap.Initialize
+End Sub
+
+
+Public Sub MainForm_resize(Width As Double, Height As Double)
+	ResizeRight(Width, Height)
+End Sub
+
+Private Sub Divider1PosPropChanged_Event (MethodName As String, Args() As Object)
+	ResizeRight(MainForm.Width,MainForm.Height)
+End Sub
+
+Private Sub ResizeRight(Width As Double, Height As Double)
+	ImageView1.SetLayoutAnimated(0,0,0,IVWidth,IVHeight)
+	Dim RWidth As Double = Width - Width * SplitPane1.DividerPositions(0)
+	ScrollPane1.As(B4XView).SetLayoutAnimated(0,0,0,RWidth,Height)
+	WebView1.As(B4XView).SetLayoutAnimated(0,0,0,RWidth,Height)
+	taLog.SetLayoutAnimated(0,0,0,RWidth,Height)
+End Sub
+
+Private Sub TextArea1_Action
+	lblStatus.Text = ""
+	Dim MI As MenuItem = Sender
+	If MI.Text = "Selected" Then
+		lblStatus.TextColor = xui.Color_Black
+		If TextArea1.SelectionStart = TextArea1.SelectionEnd Then
+			lblStatus.Text = "No text selected"
+			Return
+		End If
+		Dim Str As String = TextArea1.Text.SubString2(TextArea1.SelectionStart,TextArea1.SelectionEnd)
+		taLog.Text = LogU.GetStringCharNames(Str)
+		
+	Else If MI.Text = "All Characters" Then
+		taLog.BringToFront
+		taLog.Text = LogU.GetStringCharNames(TextArea1.Text)
+
+	Else If MI.Text = "Hex View" Then
+		Dim Selected As String = ListView1.SelectedItem.As(B4XView).Text
+		Log("Selected " & Selected)
+		If HexBufferMap.ContainsKey(Selected) Then
+			HvForm.Show(HexBufferMap.Get(Selected))
+		Else
+			HvForm.Show(TextArea1.Text.GetBytes("UtF-8"))
+		End If
+	End If
+	
+End Sub
+
+Private Sub ListView1_SelectedIndexChanged(Index As Int)
+	WebView1.LoadHtml("")
+	TextArea1.Text = ""
+	lblStatus.Text = ""
+	taLog.Text = ""
+	ImageView1.SetImage(Null)
+	HexBufferMap.Clear
+	
+	If Index = -1 Then Return
+	
+	Dim ContentType As String = ListView1.Items.Get(Index).As(B4XView).Text
+
+	Dim NoViewer As Boolean
+	
+	Select ContentType
+
+		Case "text/uri-list"
+			
+			If DragboardProxy.HasFiles Then
+				
+				Dim FileNames As List
+				FileNames.Initialize
+				FileNames.Add(ContentProxy.Files.Get(0).As(JavaObject).RunMethod("getParent",Null) & " : ")
+				For Each F As JavaObject In ContentProxy.Files
+					FileNames.Add("  " & F.RunMethod("getName",Null))
+				Next
+				
+				TextArea1.Text = "".As(JavaObject).RunMethod("join",Array(CRLF,FileNames))
+		
+			else If DragboardProxy.HasUrl Then
+				Dim URL As String = ContentProxy.Url
+				TextArea1.Text = URL
+				Log(URL)
+				If URL.StartsWith("file:") Then
+					
+					Return
+				End If
+				
+				If URL.ToLowerCase.EndsWith(".webp") Then
+					Wait For(Download(URL)) Complete (Data() As Byte)
+					
+					Dim WP As WebP
+					WP.Initialize
+					ScrollPane1.As(B4XView).BringToFront
+					Dim img As Image = WP.LoadWebP(Data)
+					IVWidth = img.Width
+					IVHeight = img.Height
+					ImageView1.SetLayoutAnimated(0,0,0,IVWidth,IVHeight)
+					ImageView1.SetImage(img)
+					Return
+				End If
+				
+				Wait For(Download(URL)) Complete (uContent As Object)
+
+				If uContent Is Image Or GetType(uContent) = "anywheresoftware.b4j.objects.ImageViewWrapper$ImageWrapper" Then
+					ScrollPane1.As(B4XView).BringToFront
+					Dim img As Image
+					If uContent Is Image Then
+						img = uContent
+					Else
+						img = uContent.As(JavaObject).RunMethod("getObject",Null)
+					End If
+					
+					IVWidth = img.Width
+					IVHeight = img.Height
+					If IVWidth = 0 And IVHeight = 0 Then
+						lblStatus.Text = "Downloaded Image has no dimensions"
+						lblStatus.TextColor = xui.Color_Red
+						Return
+					End If
+					ImageView1.SetLayoutAnimated(0,0,0,IVWidth,IVHeight)
+					ImageView1.SetImage(img)
+				End If
+				
+				If uContent Is String And uContent <> "" Then
+					WebView1.As(B4XView).BringToFront
+					WebView1.LoadHtml(uContent)
+				End If
+		
+			End If
+
+		Case "text/html"
+			TextArea1.Text = ContentMap.Get(ContentType)
+			WebView1.As(B4XView).BringToFront
+			WebView1.LoadHtml(ContentMap.Get(ContentType))
+
+		Case "application/x-java-rawimage"
+			ScrollPane1.As(B4XView).BringToFront
+			TextArea1.Text = ContentMap.Get(ContentType)
+			If DragboardProxy.HasImage Then
+				
+				Dim img As Image = ContentProxy.Img
+				IVWidth = img.Width
+				IVHeight = img.Height
+				If IVWidth = 0 And IVHeight = 0 Then
+					lblStatus.Text = "Downloaded Image has no dimensions"
+					lblStatus.TextColor = xui.Color_Red
+					Return
+				End If
+				ImageView1.SetImage(img)
+				ImageView1.SetLayoutAnimated(0,0,0,IVWidth,IVHeight)
+			Else
+				lblStatus.Text = "Image not found"
+				lblStatus.TextColor = xui.Color_Red
+			End If
+
+		Case Else
+			Dim ContentObject As Object = ContentMap.GetDefault(ContentType,"NF")
+			If ContentObject = "NF" Then
+				TextArea1.Text = "No Content"
+				Return
+			End If
+
+			If GetType(ContentObject) = "java.nio.HeapByteBuffer" Then
+				
+				Dim Result() As Byte = getBufferObject(ContentObject)
+				If Result = Null Then
+					TextArea1.Text = "No Content"
+					Return
+				End If
+				If Result.Length = 0 Then
+					TextArea1.Text = ContentObject
+					Return
+				End If
+				HexBufferMap.Put(ContentType, Result)
+				
+				Dim img As Image = BytesToImage(Result)
+				
+				If Initialized(img) And img.Width > 0 And img.Height > 0 Then
+					ScrollPane1.As(B4XView).BringToFront
+					IVWidth = img.Width
+					IVHeight = img.Height
+					ImageView1.SetImage(img)
+					ImageView1.SetLayoutAnimated(0,0,0,IVWidth,IVHeight)
+					TextArea1.Text = ContentObject
+					Return
+				End If
+
+				If Result.Length > 100000 Then
+					lblStatus.Text = "Buffer too large"
+					lblStatus.TextColor = xui.Color_Red
+					TextArea1.Text = ContentObject
+				Else
+					TextArea1.Text = BytesToString(Result,0,Result.Length,"UTF-8")
+				End If
+
+			Else If ContentObject Is String Then
+				TextArea1.Text = ContentObject
+			Else
+				TextArea1.Text = ContentObject
+				NoViewer = True
+			End If
+	End Select
+	
+	If NoViewer Then
+		lblStatus.Text = $"Cannot display content ${ContentType}"$
+		lblStatus.TextColor = xui.Color_Red
+	End If
+	
+End Sub
+
+Public Sub BytesToImage(bytes() As Byte) As Image
+	Dim In As InputStream
+	In.InitializeFromBytesArray(bytes, 0, bytes.Length)
+	Dim bmp As Image
+	bmp.Initialize2(In)
+	In.Close
+	Return bmp
+End Sub
+
+Private Sub getBufferObject(Buffer As Object) As Byte()
+	
+	Buffer.As(JavaObject).RunMethod("rewind",Null)
+	Dim Content(Buffer.As(JavaObject).RunMethod("remaining",Null)) As Byte
+	Buffer.As(JavaObject).RunMethod("get",Array(Content))
+	Return Content
+End Sub
+
+Private Sub Download(Url As String) As ResumableSub
+	Dim Job As HttpJob
+	Dim Content As String
+	Job.Initialize("Job", Me)
+	Job.Download(Url)
+
+	Wait For (Job) JobDone(jj As HttpJob)
+	If Job.Success Then
+		If Url.ToLowerCase.EndsWith(".webp") Then
+			Dim Bytes(Job.GetInputStream.BytesAvailable) As Byte
+			Job.GetInputStream.ReadBytes(Bytes,0,Bytes.Length)
+			Job.Release
+			Return Bytes
+		End If
+		Try
+			Dim Img As Image = Job.GetBitmap
+			If Img.IsInitialized Then 
+				Job.Release
+				Return Img
+			End If
+		Catch
+			Log(LastException)
+		End Try
+		
+		Content = Job.GetString
+	Else
+		Dialog.Title = "Error Loading Page"
+		Wait For(Dialog.Show("Could not get page content for " & Url, "OK","","")) Complete (Resp As Int)
+	End If
+	
+	Job.Release
+	Return Content
+End Sub
+
+	Sub DragTarget_DragEntered(e As DragEvent)
+		ListView1.as(B4XView).SetColorAndBorder(xui.Color_Transparent,2,xui.Color_Cyan,0)
+	End Sub
+
+	Sub DragTarget_DragExited(e As DragEvent)
+	ListView1.as(B4XView).SetColorAndBorder(xui.Color_Transparent,0,xui.Color_Cyan,0)
+	End Sub
+
+	Sub DragTarget_DragOver(e As DragEvent)
+		 e.AcceptTransferModes(TransferMode.COPY) 
+	End Sub
+
+Sub DragTarget_DragDropped(e As DragEvent)
+	
+	Dragbd = e.GetDragboard
+	
+	ContentMap.Clear
+	ListView1.Items.Clear
+	HexBufferMap.Clear
+	
+	Dim DragboardProxy As DragboardProxyType = CreateDragboardProxy(Dragbd)
+	Dim ContentProxy As ContentProxyType
+	ContentProxy.Initialize
+	
+	If Dragbd.HasFiles Then ContentProxy.Files = Dragbd.GetFiles
+	If Dragbd.HasHtml Then ContentProxy.HTML = Dragbd.GetHtml
+	If Dragbd.HasImage Then ContentProxy.Img = Dragbd.GetImage
+	If Dragbd.HasRtf Then ContentProxy.RTF = Dragbd.GetRtf
+	If Dragbd.HasString Then ContentProxy.Str = Dragbd.GetString
+	If Dragbd.HasURL Then ContentProxy.URL = Dragbd.GetURL
+	
+	For Each S As String In e.GetDataIDsList
+		Dim Lbl As Label = XUIViewsUtils.CreateLabel
+		Lbl.Text = S
+		Lbl.TooltipText = S
+		ListView1.Items.Add(Lbl)
+		ContentMap.Put(S,Dragbd.GetContent(S))
+	Next
+	
+	e.SetDropCompleted(True)
+End Sub
+
+Public Sub CreateDragboardProxy(DB As Dragboard) As DragboardProxyType
+	Dim t1 As DragboardProxyType
+	t1.Initialize
+	t1.HasFiles = DB.HasFiles
+	t1.HasHTML = DB.HasHTML
+	t1.HasImage = DB.HasImage
+	t1.HasRtf = DB.HasRtf
+	t1.HasString = DB.HasString
+	t1.HasUrl = DB.HasUrl
+	Return t1
+End Sub
