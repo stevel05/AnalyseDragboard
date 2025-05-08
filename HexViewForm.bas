@@ -15,7 +15,7 @@ Public Sub Initialize
 	HVForm.Initialize("HV",800,600)
 	
 	HVForm.RootPane.LoadLayout("hv")
-	HVForm.Title = "AnalyseClipboard - HexView"
+	HVForm.Title = "AnalyseDragboard - HexView"
 End Sub
 
 Public Sub Show(Data() As Byte)

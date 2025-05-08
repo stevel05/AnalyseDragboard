@@ -1,6 +1,5 @@
 ﻿AppType=JavaFX
 Build1=Default,com.stevel05.analyseclipboard
-Build2=Hexview,com.stevel05.analyseclipboard,HexView
 File1=hv.bjl
 File2=Layout1.bjl
 File3=Left.bjl
@@ -23,9 +22,10 @@ Library9=xui views
 Module1=|absolute|D:\AnywhereSoftware\B4j\aaaIDELinks\aaaIDElinks
 Module2=HexViewForm
 Module3=LogU
+Module4=UserOptions
 NumberOfFiles=4
 NumberOfLibraries=10
-NumberOfModules=3
+NumberOfModules=4
 Version=10.2
 @EndOfDesignText@
 #Region Project Attributes 
@@ -71,7 +71,6 @@ Sub Process_Globals
 	Private ImageView1 As ImageView
 	Private TextArea1 As TextArea
 	Private ListView1 As ListView
-	Private Clipboard As JavaObject
 	Private Dialog As B4XDialog
 	Private lblStatus As B4XView
 	Private IVWidth As Double = 300
@@ -85,21 +84,30 @@ Sub Process_Globals
 	Private ContentMap As Map
 	Private HvForm As HexViewForm
 	Private HexBufferMap As Map
+	Private AppName As String = "AnalyseDragboard"
 End Sub
 
 
 Sub AppStart (Form1 As Form, Args() As String)
+	
+	xui.SetDataFolder(AppName)
+	UserOptions.LoadUserOptions(xui.DefaultFolder,"opts.dat")
+		
 	MainForm = Form1
 	MainForm.RootPane.LoadLayout("Layout1")
 	
-	MainForm.Title = "Analyse Clipboard"
+	MainForm.Title = "Analyse Dragboard"
+	
+	UserOptions.SetFormMetrics(MainForm,"")
 	
 	Dialog.Initialize(MainForm.RootPane)
 	
 	SplitPane1.LoadLayout("Left")
 	SplitPane1.LoadLayout("Right")
 	
-	SplitPane1.DividerPositions = Array As Double(0.66)
+	Dim L As List = Array(0.66)
+	SplitPane1.DividerPositions = UserOptions.ListToDoubleArray(UserOptions.GetDefault("spdividers",L))
+
 	MainForm.Show
 	
 	HvForm.Initialize
@@ -122,6 +130,11 @@ Sub AppStart (Form1 As Form, Args() As String)
 	HexBufferMap.Initialize
 End Sub
 
+Public Sub MainForm_CloseRequest (EventData As Event)
+	UserOptions.Put("spdividers", UserOptions.DoubleArrayToList(SplitPane1.DividerPositions))
+	UserOptions.SaveFormMetrics(MainForm,"")
+	UserOptions.SaveUserOptions
+End Sub
 
 Public Sub MainForm_resize(Width As Double, Height As Double)
 	ResizeRight(Width, Height)
