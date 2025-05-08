@@ -20,9 +20,15 @@ End Sub
 
 Public Sub Show(Data() As Byte)
 	HexView1.AddData(Data,True)
+	CallSubDelayed(Me,"SetformMetrics")
 	HVForm.ShowAndWait
 End Sub
 
+Private Sub SetFormMetrics
+	UserOptions.SetFormMetrics(HVForm,"")
+End Sub
+
 Public Sub HV_CloseRequest (EventData As Event)
+	UserOptions.SaveFormMetrics(HVForm,"")
 	HexView1.Close
 End Sub

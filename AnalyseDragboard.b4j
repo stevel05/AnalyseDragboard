@@ -109,6 +109,8 @@ Sub AppStart (Form1 As Form, Args() As String)
 
 	MainForm.Show
 	
+	UserOptions.SetFormMetrics(MainForm,"")
+	
 	HvForm.Initialize
 	
 	ImageView1.RemoveNodeFromParent
