@@ -66,7 +66,6 @@ Sub Process_Globals
 	Private xui As XUI 
 
 	Private SplitPane1 As SplitPane
-	Private btnAnalyse As B4XView
 	Private WebView1 As WebView
 	Private ImageView1 As ImageView
 	Private TextArea1 As TextArea
