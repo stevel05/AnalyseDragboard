@@ -34,10 +34,10 @@ Version=10.2
 #End Region
 
 #PackagerProperty: IncludedModules = javafx.web
-#CustomBuildAction: After Packager, %WINDIR%\System32\robocopy.exe, ..\Objects\b4xlibs\Files temp\build\bin\ webp.dll
-
-'My specific Actions
-#CustomBuildAction: After Packager, %WINDIR%\System32\robocopy.exe, /MIR temp\build\ C:\noinst\B4j\analyseClipboard
+'#CustomBuildAction: After Packager, %WINDIR%\System32\robocopy.exe, ..\Objects\b4xlibs\Files temp\build\bin\ webp.dll
+'
+''My specific Actions
+'#CustomBuildAction: After Packager, %WINDIR%\System32\robocopy.exe, /MIR temp\build\ C:\noinst\B4j\analyseClipboard
 
 
 Sub Process_Globals
