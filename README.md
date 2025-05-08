@@ -8,6 +8,6 @@ It will display HTML, Images or Text for each, I some cases where the buffer doe
 
 A context menu provides the ability to list all characters in a string or the text or object as a hex dump.
 
-<img title="" src="/Readme_Images/ad2.png" alt="Image2" width="559" data-align="center">
+<img title="" src="Readme_Images/ad2.png" alt="Image2" width="559" data-align="center">
 
 Depends on (external libs) DragandDrop2-b4xlib, jHexviewer-b4x, WebP
